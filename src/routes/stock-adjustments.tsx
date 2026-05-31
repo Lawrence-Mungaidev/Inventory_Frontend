@@ -22,7 +22,7 @@ type Adj = {
 };
 
 export const Route = createFileRoute("/stock-adjustments")({
-  component: () => <AppLayout allowed={["ADMIN"]}><AdjPage /></AppLayout>,
+  component: () => <AppLayout allowed={["ADMIN", "CASHIER"]}><AdjPage /></AppLayout>,
 });
 
 function AdjPage() {
