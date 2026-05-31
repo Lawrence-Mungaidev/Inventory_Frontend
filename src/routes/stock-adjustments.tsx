@@ -27,6 +27,7 @@ export const Route = createFileRoute("/stock-adjustments")({
 
 function AdjPage() {
   const qc = useQueryClient();
+  const isAdmin = auth.getRole() === "ADMIN";
   const [status, setStatus] = useState<string>("ALL");
   const [open, setOpen] = useState(false);
 
