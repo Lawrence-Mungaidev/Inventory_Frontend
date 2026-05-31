@@ -14,6 +14,7 @@ import { Route as TransactionsRouteImport } from './routes/transactions'
 import { Route as SuppliersRouteImport } from './routes/suppliers'
 import { Route as StocksRouteImport } from './routes/stocks'
 import { Route as StockAdjustmentsRouteImport } from './routes/stock-adjustments'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as ProductsRouteImport } from './routes/products'
 import { Route as PosRouteImport } from './routes/pos'
@@ -46,6 +47,11 @@ const StocksRoute = StocksRouteImport.update({
 const StockAdjustmentsRoute = StockAdjustmentsRouteImport.update({
   id: '/stock-adjustments',
   path: '/stock-adjustments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReportsRoute = ReportsRouteImport.update({
@@ -98,6 +104,7 @@ export interface FileRoutesByFullPath {
   '/pos': typeof PosRoute
   '/products': typeof ProductsRoute
   '/reports': typeof ReportsRoute
+  '/settings': typeof SettingsRoute
   '/stock-adjustments': typeof StockAdjustmentsRoute
   '/stocks': typeof StocksRoute
   '/suppliers': typeof SuppliersRoute
@@ -113,6 +120,7 @@ export interface FileRoutesByTo {
   '/pos': typeof PosRoute
   '/products': typeof ProductsRoute
   '/reports': typeof ReportsRoute
+  '/settings': typeof SettingsRoute
   '/stock-adjustments': typeof StockAdjustmentsRoute
   '/stocks': typeof StocksRoute
   '/suppliers': typeof SuppliersRoute
@@ -129,6 +137,7 @@ export interface FileRoutesById {
   '/pos': typeof PosRoute
   '/products': typeof ProductsRoute
   '/reports': typeof ReportsRoute
+  '/settings': typeof SettingsRoute
   '/stock-adjustments': typeof StockAdjustmentsRoute
   '/stocks': typeof StocksRoute
   '/suppliers': typeof SuppliersRoute
@@ -146,6 +155,7 @@ export interface FileRouteTypes {
     | '/pos'
     | '/products'
     | '/reports'
+    | '/settings'
     | '/stock-adjustments'
     | '/stocks'
     | '/suppliers'
@@ -161,6 +171,7 @@ export interface FileRouteTypes {
     | '/pos'
     | '/products'
     | '/reports'
+    | '/settings'
     | '/stock-adjustments'
     | '/stocks'
     | '/suppliers'
@@ -176,6 +187,7 @@ export interface FileRouteTypes {
     | '/pos'
     | '/products'
     | '/reports'
+    | '/settings'
     | '/stock-adjustments'
     | '/stocks'
     | '/suppliers'
@@ -192,6 +204,7 @@ export interface RootRouteChildren {
   PosRoute: typeof PosRoute
   ProductsRoute: typeof ProductsRoute
   ReportsRoute: typeof ReportsRoute
+  SettingsRoute: typeof SettingsRoute
   StockAdjustmentsRoute: typeof StockAdjustmentsRoute
   StocksRoute: typeof StocksRoute
   SuppliersRoute: typeof SuppliersRoute
@@ -234,6 +247,13 @@ declare module '@tanstack/react-router' {
       path: '/stock-adjustments'
       fullPath: '/stock-adjustments'
       preLoaderRoute: typeof StockAdjustmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reports': {
@@ -304,6 +324,7 @@ const rootRouteChildren: RootRouteChildren = {
   PosRoute: PosRoute,
   ProductsRoute: ProductsRoute,
   ReportsRoute: ReportsRoute,
+  SettingsRoute: SettingsRoute,
   StockAdjustmentsRoute: StockAdjustmentsRoute,
   StocksRoute: StocksRoute,
   SuppliersRoute: SuppliersRoute,
@@ -313,3 +334,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
