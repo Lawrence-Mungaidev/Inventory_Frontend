@@ -44,19 +44,28 @@ function NotifPage() {
       : (data || []).length === 0 ? <p className="text-muted-foreground">No notifications.</p>
       : (
         <div className="space-y-2">
-          {data!.map((n) => (
-            <Card
-              key={nid(n)}
-              onClick={() => unread(n) && mark.mutate(nid(n))}
-              className={`cursor-pointer transition-colors ${unread(n) ? "border-primary bg-primary/5" : "opacity-70"}`}
-            >
-              <CardContent className="p-4 flex items-start gap-3">
-                <Badge className={typeColor[n.notificationType] || "bg-muted"}>{n.notificationType}</Badge>
-                <p className="flex-1">{n.message}</p>
-                {unread(n) && <span className="w-2 h-2 rounded-full bg-primary mt-2" />}
-              </CardContent>
-            </Card>
-          ))}
+          {data!.map((n) => {
+            const isUnread = unread(n);
+            return (
+              <Card
+                key={nid(n)}
+                onClick={() => isUnread && mark.mutate(nid(n))}
+                className={`cursor-pointer transition-colors ${
+                  isUnread
+                    ? "border-l-4 border-l-primary bg-primary/5 shadow-sm"
+                    : "opacity-60 bg-muted/30"
+                }`}
+              >
+                <CardContent className="p-4 flex items-start gap-3">
+                  <Badge className={typeColor[n.notificationType] || "bg-muted"}>{n.notificationType}</Badge>
+                  <p className={`flex-1 ${isUnread ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                    {n.message}
+                  </p>
+                  {isUnread && <span className="w-2.5 h-2.5 rounded-full bg-primary mt-2 shrink-0" />}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
