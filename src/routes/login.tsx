@@ -36,11 +36,12 @@ function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const res = await api<{ token: string; mustChangePassword: boolean; role: "ADMIN" | "CASHIER" }>(
+        const res = await api<{ token: string; mustChangePassword: boolean; role: "ADMIN" | "CASHIER"; firstName: string }>(
         "/api/auth/logIn",
         { method: "POST", body: { email, password }, skipAuth: true }
-      );
-      auth.setSession(res.token, res.role, res.mustChangePassword);
+        );
+
+      auth.setSession(res.token, res.role, res.mustChangePassword, res.firstName);
       toast.success("Welcome back");
       if (res.mustChangePassword) navigate({ to: "/change-password" });
       else navigate({ to: "/" });

@@ -28,6 +28,7 @@ type Product = {
   productName: string; isCountable: boolean; barcode: string; description?: string;
   sellingPrice: number; minimumQuantity: number; supplierId: number; categoryId: number;
   isActive?: boolean;
+  currentStock?: number;
 };
 const pid = (p: Product) => p.Id ?? p.id!;
 
@@ -89,9 +90,10 @@ function ProductsPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr className="text-left">
-                <th className="p-3">Name</th><th className="p-3">Barcode</th>
-                <th className="p-3">Price</th><th className="p-3">Min Qty</th>
-                <th className="p-3">Status</th><th className="p-3 text-right">Actions</th>
+                  <th className="p-3">Name</th><th className="p-3">Barcode</th>
+                  <th className="p-3">Price</th><th className="p-3">Min Qty</th>
+                  <th className="p-3">In Stock</th>
+                  <th className="p-3">Status</th><th className="p-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -102,6 +104,7 @@ function ProductsPage() {
                   <td className="p-3 text-xs text-muted-foreground">{p.barcode}</td>
                   <td className="p-3">{fmtKES(p.sellingPrice)}</td>
                   <td className="p-3">{p.minimumQuantity}</td>
+                  <td className="p-3">{(p as any).currentStock ?? '-'}</td>
                   <td className="p-3"><Badge variant={p.isActive ? "default" : "secondary"}>{p.isActive ? "Active" : "Inactive"}</Badge></td>
                   <td className="p-3 text-right">
                     <div className="flex justify-end items-center gap-2">
