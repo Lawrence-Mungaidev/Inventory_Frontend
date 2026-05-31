@@ -151,12 +151,18 @@ function ProductDialog({ editing, onDone }: { editing: Product | null; onDone: (
   const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: () => api<any[]>("/api/categories") });
 
   const m = useMutation({
-    mutationFn: () => editing
-      ? api(`/api/products/update/${pid(editing)}`, { method: "PATCH", body: form })
-      : api("/api/products/create", { method: "POST", body: form }),
-    onSuccess: () => { toast.success(editing ? "Updated" : "Created"); onDone(); },
-    onError: (e: any) => toast.error(e.message),
-  });
+  mutationFn: () => {
+    const body = {
+      ...form,
+      barcode: form.barcode.trim() === "" ? null : form.barcode.trim(),
+    };
+    return editing
+      ? api(`/api/products/update/${pid(editing)}`, { method: "PATCH", body })
+      : api("/api/products/create", { method: "POST", body });
+  },
+  onSuccess: () => { toast.success(editing ? "Updated" : "Created"); onDone(); },
+  onError: (e: any) => toast.error(e.message),
+});
   return (
     <DialogContent>
       <DialogHeader><DialogTitle>{editing ? "Edit" : "Create"} Product</DialogTitle></DialogHeader>
