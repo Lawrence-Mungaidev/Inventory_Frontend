@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { ThermalReceipt, ReceiptData } from "@/components/ThermalReceipt";
 
 type Product = {
   Id?: number;
@@ -30,16 +31,9 @@ type Product = {
 
 type CartItem = { product: Product; quantity: number };
 
-type TxnResponse = {
+type TxnResponse = ReceiptData & {
   Id?: number;
   transactionId: number;
-  receiptNumber: string;
-  createdAt: string;
-  cashierName: string;
-  items: { Id?: number; productName: string; quantity: number; price: number; totalPrice: number }[];
-  totalAmount: number;
-  balance: number;
-  paymentMethod: string;
 };
 
 const pid = (p: Product) => p.Id ?? p.id!;
@@ -52,6 +46,23 @@ export const Route = createFileRoute("/pos")({
   ),
 });
 
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.frequency.value = 1100;
+    g.gain.value = 0.08;
+    o.start();
+    setTimeout(() => {
+      o.stop();
+      ctx.close();
+    }, 90);
+  } catch {}
+}
+
 function POS() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
@@ -61,18 +72,44 @@ function POS() {
   const [receipt, setReceipt] = useState<TxnResponse | null>(null);
   const scanRef = useRef<HTMLInputElement>(null);
   const [scanBuf, setScanBuf] = useState("");
+  const [flash, setFlash] = useState(false);
+
+  const refocus = () => {
+    if (receipt) return;
+    setTimeout(() => scanRef.current?.focus(), 0);
+  };
 
   useEffect(() => {
-    const focus = () => scanRef.current?.focus();
-    focus();
+    refocus();
     const onClick = (e: MouseEvent) => {
+      if (receipt) return;
       const t = e.target as HTMLElement;
-      if (t.closest("input,textarea,button,select,[role=dialog]")) return;
-      focus();
+      if (t.closest("input,textarea,button,select,[role=dialog],[role=combobox],[role=listbox]")) return;
+      refocus();
+    };
+    const onKey = () => {
+      if (receipt) return;
+      if (document.activeElement instanceof HTMLInputElement) {
+        const tag = document.activeElement;
+        if (tag === scanRef.current) return;
+      }
     };
     document.addEventListener("click", onClick);
-    return () => document.removeEventListener("click", onClick);
-  }, []);
+    document.addEventListener("keydown", onKey);
+    const interval = setInterval(() => {
+      if (!receipt && document.activeElement !== scanRef.current) {
+        const el = document.activeElement as HTMLElement | null;
+        if (!el || (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA" && el.tagName !== "SELECT")) {
+          scanRef.current?.focus();
+        }
+      }
+    }, 1500);
+    return () => {
+      document.removeEventListener("click", onClick);
+      document.removeEventListener("keydown", onKey);
+      clearInterval(interval);
+    };
+  }, [receipt]);
 
   const { data: searchResults } = useQuery({
     queryKey: ["product-search", search],
@@ -97,6 +134,9 @@ function POS() {
     try {
       const p = await api<Product>(`/api/products/barcode/${encodeURIComponent(code.trim())}`);
       addToCart(p);
+      playBeep();
+      setFlash(true);
+      setTimeout(() => setFlash(false), 200);
       toast.success(`Added ${p.productName}`);
     } catch (e: any) {
       toast.error(e.message || "Product not found");
@@ -118,12 +158,14 @@ function POS() {
 
   const setQty = (id: number, val: number) => {
     setCart((c) =>
-      c.map((it) => {
-        if (pid(it.product) !== id) return it;
-        let q = isFinite(val) && val > 0 ? val : 0;
-        if (it.product.isCountable) q = Math.floor(q);
-        return { ...it, quantity: q };
-      }).filter((it) => it.quantity > 0)
+      c
+        .map((it) => {
+          if (pid(it.product) !== id) return it;
+          let q = isFinite(val) && val > 0 ? val : 0;
+          if (it.product.isCountable) q = Math.floor(q);
+          return { ...it, quantity: q };
+        })
+        .filter((it) => it.quantity > 0)
     );
   };
 
@@ -144,7 +186,7 @@ function POS() {
         },
       }),
     onSuccess: (r) => {
-      setReceipt(r);
+      setReceipt({ ...r, amountGiven: payment === "CASH" ? given : undefined });
       toast.success("Transaction completed");
       qc.invalidateQueries({ queryKey: ["report-today"] });
     },
@@ -155,10 +197,11 @@ function POS() {
     setReceipt(null);
     setCart([]);
     setAmountGiven("");
+    refocus();
   };
 
   return (
-    <div className="h-[calc(100vh-0px)] md:h-screen flex flex-col">
+    <div className={`h-screen flex flex-col transition-colors ${flash ? "bg-success/10" : ""}`}>
       <input
         ref={scanRef}
         value={scanBuf}
@@ -170,7 +213,8 @@ function POS() {
             setScanBuf("");
           }
         }}
-        className="sr-only"
+        onBlur={() => setTimeout(() => !receipt && scanRef.current?.focus(), 50)}
+        style={{ position: "fixed", left: -9999, top: -9999, opacity: 0, width: 1, height: 1 }}
         aria-hidden
       />
 
@@ -189,7 +233,7 @@ function POS() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
             {search === "" ? (
               <p className="col-span-full text-muted-foreground text-sm">
                 Search for a product or scan a barcode to add to cart.
@@ -204,8 +248,13 @@ function POS() {
                   className="cursor-pointer hover:border-primary hover:shadow-md transition-all"
                 >
                   <CardContent className="p-4">
-                    <div className="font-semibold line-clamp-2">{p.productName}</div>
-                    <div className="text-xs text-muted-foreground mt-1">{p.barcode}</div>
+                    <div className="font-semibold line-clamp-1">{p.productName}</div>
+                    {p.description && (
+                      <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                        {p.description}
+                      </div>
+                    )}
+                    <div className="text-[11px] text-muted-foreground mt-1">{p.barcode}</div>
                     <div className="text-lg font-bold text-primary mt-2">{fmtKES(p.sellingPrice)}</div>
                   </CardContent>
                 </Card>
@@ -324,43 +373,7 @@ function POS() {
           </DialogHeader>
           {receipt && (
             <>
-              <div className="print-area p-4 bg-white text-black">
-                <div className="text-center border-b pb-2 mb-2">
-                  <div className="font-bold text-lg">Mini Mart</div>
-                  <div className="text-xs">{receipt.receiptNumber}</div>
-                  <div className="text-xs">{receipt.createdAt}</div>
-                  <div className="text-xs">Cashier: {receipt.cashierName}</div>
-                </div>
-                <table className="w-full text-sm">
-                  <tbody>
-                    {receipt.items.map((it, i) => (
-                      <tr key={i}>
-                        <td className="py-1">
-                          {it.productName} × {it.quantity}
-                        </td>
-                        <td className="py-1 text-right">{fmtKES(it.totalPrice)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <div className="border-t mt-2 pt-2 space-y-1 text-sm">
-                  <div className="flex justify-between font-bold">
-                    <span>Total</span>
-                    <span>{fmtKES(receipt.totalAmount)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Payment</span>
-                    <span>{receipt.paymentMethod}</span>
-                  </div>
-                  {receipt.paymentMethod === "CASH" && (
-                    <div className="flex justify-between">
-                      <span>Change</span>
-                      <span>{fmtKES(receipt.balance)}</span>
-                    </div>
-                  )}
-                </div>
-                <div className="text-center text-xs mt-3">Thank you for shopping with us!</div>
-              </div>
+              <ThermalReceipt data={receipt} />
               <div className="flex gap-2 no-print">
                 <Button variant="outline" className="flex-1" onClick={closeReceipt}>
                   Close
