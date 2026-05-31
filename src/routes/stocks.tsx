@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { useState } from "react";
-import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { fmtKES, fmtDate } from "@/lib/format";
-import { Plus, Check, X } from "lucide-react";
+import { Plus, Check, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { auth } from "@/lib/auth";
 
 type Stock = {
@@ -23,6 +23,14 @@ type Stock = {
   arrivalDate?: string; arrivedDate?: string; createdAt?: string;
   approvedDate?: string; approvalDate?: string;
   status: "PENDING" | "APPROVED" | "REJECTED";
+};
+
+type PageResponse<T> = {
+  content: T[];
+  totalPages: number;
+  totalElements: number;
+  number: number;
+  last: boolean;
 };
 
 export const Route = createFileRoute("/stocks")({
@@ -35,13 +43,22 @@ function StocksPage() {
   const isAdmin = role === "ADMIN";
   const [status, setStatus] = useState<string>("ALL");
   const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 20;
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["stocks", status],
+  const { data, isLoading } = useQuery<PageResponse<Stock> | Stock[]>({
+    queryKey: ["stocks", status, page],
     queryFn: () => status === "ALL"
-      ? api<Stock[]>("/api/stocks")
+      ? api<PageResponse<Stock>>("/api/stocks", { query: { page: String(page), size: String(PAGE_SIZE) } })
       : api<Stock[]>(`/api/stocks/status/${status}`),
   });
+
+  const rows: Stock[] = status === "ALL"
+    ? ((data as PageResponse<Stock>)?.content ?? [])
+    : ((data as Stock[]) ?? []);
+
+  const totalPages = status === "ALL" ? (data as PageResponse<Stock>)?.totalPages ?? 1 : 1;
+  const totalElements = status === "ALL" ? (data as PageResponse<Stock>)?.totalElements ?? 0 : rows.length;
 
   const act = useMutation({
     mutationFn: ({ id, action }: { id: number; action: "approve" | "reject" }) =>
@@ -62,7 +79,7 @@ function StocksPage() {
 
       <div className="flex items-center gap-3">
         <Label>Filter:</Label>
-        <Select value={status} onValueChange={setStatus}>
+        <Select value={status} onValueChange={(v) => { setStatus(v); setPage(0); }}>
           <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All</SelectItem>
@@ -91,36 +108,52 @@ function StocksPage() {
               </tr>
             </thead>
             <tbody>
-              {isLoading ? <tr><td colSpan={isAdmin ? 10 : 9} className="p-6 text-center text-muted-foreground">Loading...</td></tr>
-              : (data || []).map((s) => (
-                <tr key={s.Id} className="border-t">
-                  <td className="p-3">{s.Id}</td>
-                  <td className="p-3 font-medium">{s.productName}</td>
-                  <td className="p-3">{s.arrivedQuantity}</td>
-                  <td className="p-3">{fmtKES(s.totalBoughtPrice)}</td>
-                  <td className="p-3">{s.supplierName}</td>
-                  <td className="p-3">{s.addedByName}</td>
-                  <td className="p-3">{fmtDate(s.arrivalDate || s.arrivedDate || s.createdAt || "")}</td>
-                  <td className="p-3">{fmtDate(s.approvedDate || s.approvalDate || "")}</td>
-                  <td className="p-3">
-                    <Badge variant={s.status === "APPROVED" ? "default" : s.status === "REJECTED" ? "destructive" : "secondary"}>{s.status}</Badge>
-                  </td>
-                  {isAdmin && (
-                    <td className="p-3 text-right">
-                      {s.status === "PENDING" && (
-                        <div className="flex justify-end gap-1">
-                          <Button size="sm" variant="outline" onClick={() => act.mutate({ id: s.Id, action: "approve" })}><Check className="w-4 h-4 mr-1" />Approve</Button>
-                          <Button size="sm" variant="outline" className="text-destructive" onClick={() => act.mutate({ id: s.Id, action: "reject" })}><X className="w-4 h-4 mr-1" />Reject</Button>
-                        </div>
-                      )}
+              {isLoading
+                ? <tr><td colSpan={isAdmin ? 10 : 9} className="p-6 text-center text-muted-foreground">Loading...</td></tr>
+                : rows.map((s) => (
+                  <tr key={s.Id} className="border-t">
+                    <td className="p-3">{s.Id}</td>
+                    <td className="p-3 font-medium">{s.productName}</td>
+                    <td className="p-3">{s.arrivedQuantity}</td>
+                    <td className="p-3">{fmtKES(s.totalBoughtPrice)}</td>
+                    <td className="p-3">{s.supplierName}</td>
+                    <td className="p-3">{s.addedByName}</td>
+                    <td className="p-3">{fmtDate(s.arrivalDate || s.arrivedDate || s.createdAt || "")}</td>
+                    <td className="p-3">{fmtDate(s.approvedDate || s.approvalDate || "")}</td>
+                    <td className="p-3">
+                      <Badge variant={s.status === "APPROVED" ? "default" : s.status === "REJECTED" ? "destructive" : "secondary"}>{s.status}</Badge>
                     </td>
-                  )}
-                </tr>
-              ))}
+                    {isAdmin && (
+                      <td className="p-3 text-right">
+                        {s.status === "PENDING" && (
+                          <div className="flex justify-end gap-1">
+                            <Button size="sm" variant="outline" onClick={() => act.mutate({ id: s.Id, action: "approve" })}><Check className="w-4 h-4 mr-1" />Approve</Button>
+                            <Button size="sm" variant="outline" className="text-destructive" onClick={() => act.mutate({ id: s.Id, action: "reject" })}><X className="w-4 h-4 mr-1" />Reject</Button>
+                          </div>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                ))}
             </tbody>
           </table>
         </CardContent>
       </Card>
+
+      {status === "ALL" && (
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>{totalElements} total stocks</span>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setPage(p => p - 1)} disabled={page === 0}>
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <span>Page {page + 1} of {totalPages}</span>
+            <Button variant="outline" size="sm" onClick={() => setPage(p => p + 1)} disabled={page + 1 >= totalPages}>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -130,10 +163,10 @@ function CreateStockDialog({ onDone }: { onDone: () => void }) {
   const [productSearch, setProductSearch] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<string>("");
   const { data: products } = useQuery({
-  queryKey: ["products-search", productSearch],
-  queryFn: () => api<any[]>("/api/products/search", { query: { productName: productSearch } }),
-  enabled: productSearch.length > 0,
-});
+    queryKey: ["products-search", productSearch],
+    queryFn: () => api<any[]>("/api/products/search", { query: { productName: productSearch } }),
+    enabled: productSearch.length > 0,
+  });
   const { data: suppliers } = useQuery({ queryKey: ["suppliers-active"], queryFn: () => api<any[]>("/api/suppliers/active") });
 
   const m = useMutation({
@@ -150,30 +183,30 @@ function CreateStockDialog({ onDone }: { onDone: () => void }) {
       <DialogHeader><DialogTitle>New Stock Request</DialogTitle></DialogHeader>
       <div className="space-y-3">
         <div className="relative">
-            <Label>Product</Label>
-            <Input
-              placeholder="Search product..."
-              value={selectedProduct || productSearch}
-              onChange={(e) => { setProductSearch(e.target.value); setSelectedProduct(""); setForm({ ...form, productId: 0 }); }}
-            />
-            {products && products.length > 0 && !form.productId && (
-              <div className="border rounded-md mt-1 max-h-40 overflow-auto bg-background shadow z-10 absolute w-full">
-                {products.map((p) => (
-                  <div
-                    key={p.Id ?? p.id}
-                    className="px-3 py-2 cursor-pointer hover:bg-muted text-sm"
-                    onClick={() => {
-                      setForm({ ...form, productId: p.Id ?? p.id });
-                      setSelectedProduct(p.productName);
-                      setProductSearch("");
-                    }}
-                  >
-                    {p.productName} {p.description ? `— ${p.description}` : ""}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <Label>Product</Label>
+          <Input
+            placeholder="Search product..."
+            value={selectedProduct || productSearch}
+            onChange={(e) => { setProductSearch(e.target.value); setSelectedProduct(""); setForm({ ...form, productId: 0 }); }}
+          />
+          {products && products.length > 0 && !form.productId && (
+            <div className="border rounded-md mt-1 max-h-40 overflow-auto bg-background shadow z-10 absolute w-full">
+              {products.map((p) => (
+                <div
+                  key={p.Id ?? p.id}
+                  className="px-3 py-2 cursor-pointer hover:bg-muted text-sm"
+                  onClick={() => {
+                    setForm({ ...form, productId: p.Id ?? p.id });
+                    setSelectedProduct(p.productName);
+                    setProductSearch("");
+                  }}
+                >
+                  {p.productName} {p.description ? `— ${p.description}` : ""}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         <div>
           <Label>Supplier</Label>
           <Select value={String(form.supplierId)} onValueChange={(v) => setForm({ ...form, supplierId: parseInt(v) })}>
