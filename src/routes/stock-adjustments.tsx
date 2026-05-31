@@ -114,8 +114,13 @@ function AdjPage() {
 
 function CreateAdjDialog({ onDone }: { onDone: () => void }) {
   const [form, setForm] = useState({ productId: 0, quantity: 0, adjustmentType: "DAMAGED", reason: "" });
-  const { data: products } = useQuery({ queryKey: ["products-active"], queryFn: () => api<any[]>("/api/products/active") });
-
+  const [productSearch, setProductSearch] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState<string>("");
+  const { data: products } = useQuery({
+  queryKey: ["products-search", productSearch],
+  queryFn: () => api<any[]>("/api/products/search", { query: { productName: productSearch } }),
+  enabled: productSearch.length > 0,
+  });
   const m = useMutation({
     mutationFn: () => api("/api/stockAdjustments/adjustRequest", { method: "POST", body: form }),
     onSuccess: () => { toast.success("Submitted"); onDone(); },
@@ -126,15 +131,31 @@ function CreateAdjDialog({ onDone }: { onDone: () => void }) {
     <DialogContent>
       <DialogHeader><DialogTitle>New Adjustment</DialogTitle></DialogHeader>
       <div className="space-y-3">
-        <div>
-          <Label>Product</Label>
-          <Select value={String(form.productId)} onValueChange={(v) => setForm({ ...form, productId: parseInt(v) })}>
-            <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-            <SelectContent>
-              {(products || []).map((p) => <SelectItem key={p.Id ?? p.id} value={String(p.Id ?? p.id)}>{p.productName}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
+        <div className="relative">
+            <Label>Product</Label>
+            <Input
+              placeholder="Search product..."
+              value={selectedProduct || productSearch}
+              onChange={(e) => { setProductSearch(e.target.value); setSelectedProduct(""); setForm({ ...form, productId: 0 }); }}
+            />
+            {products && products.length > 0 && !form.productId && (
+              <div className="border rounded-md mt-1 max-h-40 overflow-auto bg-background shadow z-10 absolute w-full">
+                {products.map((p) => (
+                  <div
+                    key={p.Id ?? p.id}
+                    className="px-3 py-2 cursor-pointer hover:bg-muted text-sm"
+                    onClick={() => {
+                      setForm({ ...form, productId: p.Id ?? p.id });
+                      setSelectedProduct(p.productName);
+                      setProductSearch("");
+                    }}
+                  >
+                    {p.productName} {p.description ? `— ${p.description}` : ""}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         <div className="grid grid-cols-2 gap-3">
           <div><Label>Quantity</Label><Input type="number" step="0.01" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: parseFloat(e.target.value) || 0 })} /></div>
           <div>

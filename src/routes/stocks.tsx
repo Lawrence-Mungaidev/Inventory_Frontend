@@ -142,7 +142,13 @@ function StocksPage() {
 
 function CreateStockDialog({ onDone }: { onDone: () => void }) {
   const [form, setForm] = useState({ productId: 0, arrivedQuantity: 0, buyingPrice: 0, supplierId: 0, expiryDate: "" });
-  const { data: products } = useQuery({ queryKey: ["products-active"], queryFn: () => api<any[]>("/api/products/active") });
+  const [productSearch, setProductSearch] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState<string>("");
+  const { data: products } = useQuery({
+  queryKey: ["products-search", productSearch],
+  queryFn: () => api<any[]>("/api/products/search", { query: { productName: productSearch } }),
+  enabled: productSearch.length > 0,
+});
   const { data: suppliers } = useQuery({ queryKey: ["suppliers-active"], queryFn: () => api<any[]>("/api/suppliers/active") });
 
   const m = useMutation({
@@ -158,15 +164,31 @@ function CreateStockDialog({ onDone }: { onDone: () => void }) {
     <DialogContent>
       <DialogHeader><DialogTitle>New Stock Request</DialogTitle></DialogHeader>
       <div className="space-y-3">
-        <div>
-          <Label>Product</Label>
-          <Select value={String(form.productId)} onValueChange={(v) => setForm({ ...form, productId: parseInt(v) })}>
-            <SelectTrigger><SelectValue placeholder="Select product" /></SelectTrigger>
-            <SelectContent>
-              {(products || []).map((p) => <SelectItem key={p.Id ?? p.id} value={String(p.Id ?? p.id)}>{p.productName}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
+        <div className="relative">
+            <Label>Product</Label>
+            <Input
+              placeholder="Search product..."
+              value={selectedProduct || productSearch}
+              onChange={(e) => { setProductSearch(e.target.value); setSelectedProduct(""); setForm({ ...form, productId: 0 }); }}
+            />
+            {products && products.length > 0 && !form.productId && (
+              <div className="border rounded-md mt-1 max-h-40 overflow-auto bg-background shadow z-10 absolute w-full">
+                {products.map((p) => (
+                  <div
+                    key={p.Id ?? p.id}
+                    className="px-3 py-2 cursor-pointer hover:bg-muted text-sm"
+                    onClick={() => {
+                      setForm({ ...form, productId: p.Id ?? p.id });
+                      setSelectedProduct(p.productName);
+                      setProductSearch("");
+                    }}
+                  >
+                    {p.productName} {p.description ? `— ${p.description}` : ""}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         <div>
           <Label>Supplier</Label>
           <Select value={String(form.supplierId)} onValueChange={(v) => setForm({ ...form, supplierId: parseInt(v) })}>
