@@ -55,12 +55,13 @@ export const auth = {
   isAuthed(): boolean {
     return !!this.getToken();
   },
-  setSession(token: string, role: Role, mustChangePassword: boolean) {
-    localStorage.setItem(TOKEN, token);
-    localStorage.setItem(ROLE, role);
-    localStorage.setItem(MCP, String(!!mustChangePassword));
-    localStorage.setItem(NAME, extractName(token));
-  },
+ setSession(token: string, role: Role, mustChangePassword: boolean, firstName?: string) {
+  console.log("setSession firstName:", firstName);
+  localStorage.setItem(TOKEN, token);
+  localStorage.setItem(ROLE, role);
+  localStorage.setItem(MCP, String(!!mustChangePassword));
+  localStorage.setItem(NAME, firstName || extractName(token));
+},
   clearMustChange() {
     localStorage.setItem(MCP, "false");
   },
