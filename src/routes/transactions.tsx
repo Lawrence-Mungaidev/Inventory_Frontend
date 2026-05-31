@@ -10,6 +10,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fmtKES, fmtDate } from "@/lib/format";
+import { ThermalReceipt } from "@/components/ThermalReceipt";
+import { Printer, Search } from "lucide-react";
 
 type Txn = {
   Id?: number; transactionId: number; receiptNumber: string; createdAt: string;
@@ -19,22 +21,29 @@ type Txn = {
 };
 
 export const Route = createFileRoute("/transactions")({
-  component: () => <AppLayout allowed={["ADMIN"]}><TxnPage /></AppLayout>,
+  component: () => <AppLayout allowed={["ADMIN", "CASHIER"]}><TxnPage /></AppLayout>,
 });
 
 function TxnPage() {
-  const [mode, setMode] = useState<"all" | "today" | "range">("all");
+  const [mode, setMode] = useState<"today" | "range">("today");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
-  const [selected, setSelected] = useState<Txn | null>(null);
+  const [submittedRange, setSubmittedRange] = useState<{ start: string; end: string } | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["transactions", mode, start, end],
+    queryKey: ["transactions", mode, submittedRange],
     queryFn: () => {
-      if (mode === "today") return api<Txn[]>("/api/Transactions/today");
-      if (mode === "range" && start && end) return api<Txn[]>("/api/Transactions/range", { query: { start, end } });
-      return api<Txn[]>("/api/Transactions");
+      if (mode === "range" && submittedRange)
+        return api<Txn[]>("/api/Transactions/range", { query: submittedRange });
+      return api<Txn[]>("/api/Transactions/today");
     },
+  });
+
+  const { data: detail } = useQuery({
+    queryKey: ["transaction", selectedId],
+    queryFn: () => api<Txn>(`/api/Transactions/${selectedId}`),
+    enabled: !!selectedId,
   });
 
   return (
@@ -43,14 +52,16 @@ function TxnPage() {
 
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex gap-2">
-          <Button variant={mode === "all" ? "default" : "outline"} onClick={() => setMode("all")}>All</Button>
-          <Button variant={mode === "today" ? "default" : "outline"} onClick={() => setMode("today")}>Today</Button>
+          <Button variant={mode === "today" ? "default" : "outline"} onClick={() => { setMode("today"); setSubmittedRange(null); }}>Today</Button>
           <Button variant={mode === "range" ? "default" : "outline"} onClick={() => setMode("range")}>Date Range</Button>
         </div>
         {mode === "range" && (
-          <div className="flex gap-2 items-end">
+          <div className="flex gap-2 items-end flex-wrap">
             <div><Label>Start</Label><Input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></div>
             <div><Label>End</Label><Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></div>
+            <Button onClick={() => start && end && setSubmittedRange({ start, end })} disabled={!start || !end}>
+              <Search className="w-4 h-4 mr-2" /> Search
+            </Button>
           </div>
         )}
       </div>
@@ -66,8 +77,9 @@ function TxnPage() {
             </thead>
             <tbody>
               {isLoading ? <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">Loading...</td></tr>
+              : (data || []).length === 0 ? <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">No transactions.</td></tr>
               : (data || []).map((t) => (
-                <tr key={t.transactionId} onClick={() => setSelected(t)} className="border-t cursor-pointer hover:bg-muted/50">
+                <tr key={t.transactionId} onClick={() => setSelectedId(t.transactionId)} className="border-t cursor-pointer hover:bg-muted/50">
                   <td className="p-3 font-medium">{t.receiptNumber}</td>
                   <td className="p-3">{t.cashierName}</td>
                   <td className="p-3">{fmtKES(t.totalAmount)}</td>
@@ -80,32 +92,21 @@ function TxnPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{selected?.receiptNumber}</DialogTitle></DialogHeader>
-          {selected && (
-            <div className="space-y-3 text-sm">
-              <div className="grid grid-cols-2 gap-2 text-muted-foreground">
-                <div>Cashier: <span className="text-foreground">{selected.cashierName}</span></div>
-                <div>Date: <span className="text-foreground">{fmtDate(selected.createdAt)}</span></div>
-                <div>Payment: <span className="text-foreground">{selected.paymentMethod}</span></div>
-                <div>Balance: <span className="text-foreground">{fmtKES(selected.balance)}</span></div>
+      <Dialog open={!!selectedId} onOpenChange={(o) => !o && setSelectedId(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Transaction Details</DialogTitle></DialogHeader>
+          {detail ? (
+            <>
+              <ThermalReceipt data={detail} />
+              <div className="flex gap-2 no-print">
+                <Button variant="outline" className="flex-1" onClick={() => setSelectedId(null)}>Close</Button>
+                <Button className="flex-1" onClick={() => window.print()}>
+                  <Printer className="w-4 h-4 mr-2" /> Print
+                </Button>
               </div>
-              <table className="w-full border-t">
-                <thead><tr className="text-left text-xs text-muted-foreground"><th className="py-2">Item</th><th>Qty</th><th>Price</th><th className="text-right">Total</th></tr></thead>
-                <tbody>
-                  {selected.items.map((it, i) => (
-                    <tr key={i} className="border-t">
-                      <td className="py-2">{it.productName}</td>
-                      <td>{it.quantity}</td>
-                      <td>{fmtKES(it.price)}</td>
-                      <td className="text-right">{fmtKES(it.totalPrice)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot><tr className="border-t font-bold"><td colSpan={3} className="py-2">Total</td><td className="text-right">{fmtKES(selected.totalAmount)}</td></tr></tfoot>
-              </table>
-            </div>
+            </>
+          ) : (
+            <p className="text-muted-foreground text-sm">Loading...</p>
           )}
         </DialogContent>
       </Dialog>

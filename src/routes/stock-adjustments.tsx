@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Check, X } from "lucide-react";
+import { auth } from "@/lib/auth";
 
 type Adj = {
   Id: number; productName: string; quantity: number;
@@ -22,11 +23,12 @@ type Adj = {
 };
 
 export const Route = createFileRoute("/stock-adjustments")({
-  component: () => <AppLayout allowed={["ADMIN"]}><AdjPage /></AppLayout>,
+  component: () => <AppLayout allowed={["ADMIN", "CASHIER"]}><AdjPage /></AppLayout>,
 });
 
 function AdjPage() {
   const qc = useQueryClient();
+  const isAdmin = auth.getRole() === "ADMIN";
   const [status, setStatus] = useState<string>("ALL");
   const [open, setOpen] = useState(false);
 
@@ -74,11 +76,12 @@ function AdjPage() {
               <tr className="text-left">
                 <th className="p-3">ID</th><th className="p-3">Product</th><th className="p-3">Qty</th>
                 <th className="p-3">Type</th><th className="p-3">Reason</th>
-                <th className="p-3">Status</th><th className="p-3 text-right">Actions</th>
+                <th className="p-3">Status</th>
+                {isAdmin && <th className="p-3 text-right">Actions</th>}
               </tr>
             </thead>
             <tbody>
-              {isLoading ? <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">Loading...</td></tr>
+              {isLoading ? <tr><td colSpan={isAdmin ? 7 : 6} className="p-6 text-center text-muted-foreground">Loading...</td></tr>
               : (data || []).map((a) => (
                 <tr key={a.Id} className="border-t">
                   <td className="p-3">{a.Id}</td>
@@ -89,14 +92,16 @@ function AdjPage() {
                   <td className="p-3">
                     <Badge variant={a.status === "APPROVED" ? "default" : a.status === "REJECTED" ? "destructive" : "secondary"}>{a.status}</Badge>
                   </td>
-                  <td className="p-3 text-right">
-                    {a.status === "PENDING" && (
-                      <div className="flex justify-end gap-1">
-                        <Button size="sm" variant="outline" onClick={() => act.mutate({ id: a.Id, action: "approve" })}><Check className="w-4 h-4 mr-1" />Approve</Button>
-                        <Button size="sm" variant="outline" className="text-destructive" onClick={() => act.mutate({ id: a.Id, action: "reject" })}><X className="w-4 h-4 mr-1" />Reject</Button>
-                      </div>
-                    )}
-                  </td>
+                  {isAdmin && (
+                    <td className="p-3 text-right">
+                      {a.status === "PENDING" && (
+                        <div className="flex justify-end gap-1">
+                          <Button size="sm" variant="outline" onClick={() => act.mutate({ id: a.Id, action: "approve" })}><Check className="w-4 h-4 mr-1" />Approve</Button>
+                          <Button size="sm" variant="outline" className="text-destructive" onClick={() => act.mutate({ id: a.Id, action: "reject" })}><X className="w-4 h-4 mr-1" />Reject</Button>
+                        </div>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
