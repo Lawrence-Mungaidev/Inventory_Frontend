@@ -18,7 +18,7 @@ import { Plus, Check, X } from "lucide-react";
 import { auth } from "@/lib/auth";
 
 type Stock = {
-  Id: number; productId: number; arrivedQuantity: number; totalBoughtPrice: number;
+  Id: number; productId: number; productName: string; arrivedQuantity: number; totalBoughtPrice: number;
   supplierName: string; addedByName: string; approvedByName?: string;
   arrivalDate?: string; arrivedDate?: string; createdAt?: string;
   approvedDate?: string; approvalDate?: string;
@@ -41,21 +41,6 @@ function StocksPage() {
     queryFn: () => status === "ALL"
       ? api<Stock[]>("/api/stocks")
       : api<Stock[]>(`/api/stocks/status/${status}`),
-  });
-
-  // Resolve productId -> productName
-  const productIds = Array.from(new Set((data || []).map((s) => s.productId)));
-  const productQueries = useQueries({
-    queries: productIds.map((id) => ({
-      queryKey: ["product", id],
-      queryFn: () => api<any>(`/api/products/${id}`),
-      staleTime: 60_000,
-    })),
-  });
-  const productMap: Record<number, string> = {};
-  productIds.forEach((id, i) => {
-    const p = productQueries[i].data;
-    if (p) productMap[id] = p.productName || `#${id}`;
   });
 
   const act = useMutation({
@@ -110,7 +95,7 @@ function StocksPage() {
               : (data || []).map((s) => (
                 <tr key={s.Id} className="border-t">
                   <td className="p-3">{s.Id}</td>
-                  <td className="p-3 font-medium">{productMap[s.productId] || `#${s.productId}`}</td>
+                  <td className="p-3 font-medium">{s.productName}</td>
                   <td className="p-3">{s.arrivedQuantity}</td>
                   <td className="p-3">{fmtKES(s.totalBoughtPrice)}</td>
                   <td className="p-3">{s.supplierName}</td>

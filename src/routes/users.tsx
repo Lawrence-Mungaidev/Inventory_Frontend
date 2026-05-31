@@ -102,11 +102,11 @@ function UsersPage() {
 
 function CreateUserDialog({ onDone }: { onDone: () => void }) {
   const [form, setForm] = useState({
-    firstName: "", lastName: "", email: "", password: "", phoneNumber: "", role: "CASHIER" as "ADMIN" | "CASHIER",
+    firstName: "", lastName: "", email: "", phoneNumber: "", role: "CASHIER" as "ADMIN" | "CASHIER",
   });
   const m = useMutation({
     mutationFn: () => api("/api/users/create", { method: "POST", body: form }),
-    onSuccess: () => { toast.success("User created"); onDone(); },
+    onSuccess: () => { toast.success("User created — temporary password: 12345678Q."); onDone(); },
     onError: (e: any) => toast.error(e.message),
   });
   return (
@@ -127,7 +127,6 @@ function CreateUserDialog({ onDone }: { onDone: () => void }) {
             </SelectContent>
           </Select>
         </div>
-        <div className="col-span-2"><Label>Temporary password</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></div>
       </div>
       <DialogFooter><Button onClick={() => m.mutate()} disabled={m.isPending}>{m.isPending ? "Creating..." : "Create"}</Button></DialogFooter>
     </DialogContent>

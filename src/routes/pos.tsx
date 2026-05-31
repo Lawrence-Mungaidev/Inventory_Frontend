@@ -132,7 +132,8 @@ function POS() {
   const handleBarcodeSubmit = async (code: string) => {
     if (!code.trim()) return;
     try {
-      const p = await api<Product>(`/api/products/barcode/${encodeURIComponent(code.trim())}`);
+      const cleaned = code.trim().replace(/\r/g, "").replace(/\n/g, "");
+      const p = await api<Product>(`/api/products/barcode/${encodeURIComponent(cleaned)}`);
       addToCart(p);
       playBeep();
       setFlash(true);
