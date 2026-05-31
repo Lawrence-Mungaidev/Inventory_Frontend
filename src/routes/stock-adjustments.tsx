@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Check, X } from "lucide-react";
+import { auth } from "@/lib/auth";
 
 type Adj = {
   Id: number; productName: string; quantity: number;
