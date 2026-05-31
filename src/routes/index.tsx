@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fmtKES } from "@/lib/format";
 import { Receipt, TrendingUp, Package } from "lucide-react";
+import { auth } from "@/lib/auth";
 
 type TodayReport = {
   date: string;
@@ -19,13 +20,14 @@ export const Route = createFileRoute("/")({
 
 function Dashboard() {
   return (
-    <AppLayout allowed={["ADMIN"]}>
+    <AppLayout allowed={["ADMIN", "CASHIER"]}>
       <DashboardContent />
     </AppLayout>
   );
 }
 
 function DashboardContent() {
+  const name = auth.getName();
   const { data, isLoading } = useQuery({
     queryKey: ["report-today"],
     queryFn: () => api<TodayReport>("/api/report/today"),
@@ -34,7 +36,7 @@ function DashboardContent() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <h1 className="text-3xl font-bold">Welcome, {name}</h1>
         <p className="text-muted-foreground">Today's overview — {data?.date || ""}</p>
       </div>
 
@@ -64,7 +66,7 @@ function DashboardContent() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Top Selling Items Today</CardTitle>
+          <CardTitle>Items Sold Today</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
