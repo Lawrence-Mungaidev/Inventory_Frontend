@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,21 +13,26 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { fmtKES } from "@/lib/format";
+import { fmtKES, fmtDate } from "@/lib/format";
 import { Plus, Check, X } from "lucide-react";
+import { auth } from "@/lib/auth";
 
 type Stock = {
   Id: number; productId: number; arrivedQuantity: number; totalBoughtPrice: number;
   supplierName: string; addedByName: string; approvedByName?: string;
-  approvedDate?: string; status: "PENDING" | "APPROVED" | "REJECTED";
+  arrivalDate?: string; arrivedDate?: string; createdAt?: string;
+  approvedDate?: string; approvalDate?: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
 };
 
 export const Route = createFileRoute("/stocks")({
-  component: () => <AppLayout allowed={["ADMIN"]}><StocksPage /></AppLayout>,
+  component: () => <AppLayout allowed={["ADMIN", "CASHIER"]}><StocksPage /></AppLayout>,
 });
 
 function StocksPage() {
   const qc = useQueryClient();
+  const role = auth.getRole();
+  const isAdmin = role === "ADMIN";
   const [status, setStatus] = useState<string>("ALL");
   const [open, setOpen] = useState(false);
 
@@ -36,6 +41,21 @@ function StocksPage() {
     queryFn: () => status === "ALL"
       ? api<Stock[]>("/api/stocks")
       : api<Stock[]>(`/api/stocks/status/${status}`),
+  });
+
+  // Resolve productId -> productName
+  const productIds = Array.from(new Set((data || []).map((s) => s.productId)));
+  const productQueries = useQueries({
+    queries: productIds.map((id) => ({
+      queryKey: ["product", id],
+      queryFn: () => api<any>(`/api/products/${id}`),
+      staleTime: 60_000,
+    })),
+  });
+  const productMap: Record<number, string> = {};
+  productIds.forEach((id, i) => {
+    const p = productQueries[i].data;
+    if (p) productMap[id] = p.productName || `#${id}`;
   });
 
   const act = useMutation({
@@ -73,32 +93,43 @@ function StocksPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr className="text-left">
-                <th className="p-3">ID</th><th className="p-3">Product</th><th className="p-3">Qty</th>
-                <th className="p-3">Total Cost</th><th className="p-3">Supplier</th>
-                <th className="p-3">Added By</th><th className="p-3">Status</th><th className="p-3 text-right">Actions</th>
+                <th className="p-3">ID</th>
+                <th className="p-3">Product</th>
+                <th className="p-3">Qty</th>
+                <th className="p-3">Total Cost</th>
+                <th className="p-3">Supplier</th>
+                <th className="p-3">Added By</th>
+                <th className="p-3">Arrival Date</th>
+                <th className="p-3">Approval Date</th>
+                <th className="p-3">Status</th>
+                {isAdmin && <th className="p-3 text-right">Actions</th>}
               </tr>
             </thead>
             <tbody>
-              {isLoading ? <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">Loading...</td></tr>
+              {isLoading ? <tr><td colSpan={isAdmin ? 10 : 9} className="p-6 text-center text-muted-foreground">Loading...</td></tr>
               : (data || []).map((s) => (
                 <tr key={s.Id} className="border-t">
                   <td className="p-3">{s.Id}</td>
-                  <td className="p-3">#{s.productId}</td>
+                  <td className="p-3 font-medium">{productMap[s.productId] || `#${s.productId}`}</td>
                   <td className="p-3">{s.arrivedQuantity}</td>
                   <td className="p-3">{fmtKES(s.totalBoughtPrice)}</td>
                   <td className="p-3">{s.supplierName}</td>
                   <td className="p-3">{s.addedByName}</td>
+                  <td className="p-3">{fmtDate(s.arrivalDate || s.arrivedDate || s.createdAt || "")}</td>
+                  <td className="p-3">{fmtDate(s.approvedDate || s.approvalDate || "")}</td>
                   <td className="p-3">
                     <Badge variant={s.status === "APPROVED" ? "default" : s.status === "REJECTED" ? "destructive" : "secondary"}>{s.status}</Badge>
                   </td>
-                  <td className="p-3 text-right">
-                    {s.status === "PENDING" && (
-                      <div className="flex justify-end gap-1">
-                        <Button size="sm" variant="outline" onClick={() => act.mutate({ id: s.Id, action: "approve" })}><Check className="w-4 h-4 mr-1" />Approve</Button>
-                        <Button size="sm" variant="outline" className="text-destructive" onClick={() => act.mutate({ id: s.Id, action: "reject" })}><X className="w-4 h-4 mr-1" />Reject</Button>
-                      </div>
-                    )}
-                  </td>
+                  {isAdmin && (
+                    <td className="p-3 text-right">
+                      {s.status === "PENDING" && (
+                        <div className="flex justify-end gap-1">
+                          <Button size="sm" variant="outline" onClick={() => act.mutate({ id: s.Id, action: "approve" })}><Check className="w-4 h-4 mr-1" />Approve</Button>
+                          <Button size="sm" variant="outline" className="text-destructive" onClick={() => act.mutate({ id: s.Id, action: "reject" })}><X className="w-4 h-4 mr-1" />Reject</Button>
+                        </div>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -119,13 +150,13 @@ function CreateStockDialog({ onDone }: { onDone: () => void }) {
       method: "POST",
       body: { ...form, expiryDate: form.expiryDate || undefined },
     }),
-    onSuccess: () => { toast.success("Stock created"); onDone(); },
+    onSuccess: () => { toast.success("Stock request created"); onDone(); },
     onError: (e: any) => toast.error(e.message),
   });
 
   return (
     <DialogContent>
-      <DialogHeader><DialogTitle>New Stock</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>New Stock Request</DialogTitle></DialogHeader>
       <div className="space-y-3">
         <div>
           <Label>Product</Label>
