@@ -213,9 +213,15 @@ function POS() {
             setScanBuf("");
           }
         }}
-        onBlur={() => setTimeout(() => !receipt && scanRef.current?.focus(), 50)}
-        style={{ position: "fixed", left: -9999, top: -9999, opacity: 0, width: 1, height: 1 }}
-        aria-hidden
+          onBlur={() => {
+            setTimeout(() => {
+              if (!receipt && document.activeElement?.tagName !== "INPUT") {
+                scanRef.current?.focus();
+              }
+              }, 50);
+            }}
+            style={{ position: "fixed", left: -9999, top: -9999, opacity: 0, width: 1, height: 1 }}
+            aria-hidden
       />
 
       <div className="flex-1 flex flex-col lg:flex-row min-h-0">
