@@ -11,4 +11,24 @@ export default defineConfig({
     tailwindcss(),
     tsconfigPaths(),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/react/") || id.includes("node_modules/react-dom/")) {
+            return "react-vendor";
+          }
+          if (id.includes("node_modules/@tanstack/")) {
+            return "tanstack";
+          }
+          if (id.includes("node_modules/@radix-ui/")) {
+            return "radix";
+          }
+          if (id.includes("node_modules/recharts/")) {
+            return "charts";
+          }
+        },
+      },
+    },
+  },
 });
