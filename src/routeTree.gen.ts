@@ -20,6 +20,7 @@ import { Route as ProductsRouteImport } from './routes/products'
 import { Route as PosRouteImport } from './routes/pos'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ChatRouteImport } from './routes/chat'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as CategoriesRouteImport } from './routes/categories'
 import { Route as IndexRouteImport } from './routes/index'
@@ -79,6 +80,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChatRoute = ChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChangePasswordRoute = ChangePasswordRouteImport.update({
   id: '/change-password',
   path: '/change-password',
@@ -99,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/categories': typeof CategoriesRoute
   '/change-password': typeof ChangePasswordRoute
+  '/chat': typeof ChatRoute
   '/login': typeof LoginRoute
   '/notifications': typeof NotificationsRoute
   '/pos': typeof PosRoute
@@ -115,6 +122,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/categories': typeof CategoriesRoute
   '/change-password': typeof ChangePasswordRoute
+  '/chat': typeof ChatRoute
   '/login': typeof LoginRoute
   '/notifications': typeof NotificationsRoute
   '/pos': typeof PosRoute
@@ -132,6 +140,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/categories': typeof CategoriesRoute
   '/change-password': typeof ChangePasswordRoute
+  '/chat': typeof ChatRoute
   '/login': typeof LoginRoute
   '/notifications': typeof NotificationsRoute
   '/pos': typeof PosRoute
@@ -150,6 +159,7 @@ export interface FileRouteTypes {
     | '/'
     | '/categories'
     | '/change-password'
+    | '/chat'
     | '/login'
     | '/notifications'
     | '/pos'
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | '/'
     | '/categories'
     | '/change-password'
+    | '/chat'
     | '/login'
     | '/notifications'
     | '/pos'
@@ -182,6 +193,7 @@ export interface FileRouteTypes {
     | '/'
     | '/categories'
     | '/change-password'
+    | '/chat'
     | '/login'
     | '/notifications'
     | '/pos'
@@ -199,6 +211,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CategoriesRoute: typeof CategoriesRoute
   ChangePasswordRoute: typeof ChangePasswordRoute
+  ChatRoute: typeof ChatRoute
   LoginRoute: typeof LoginRoute
   NotificationsRoute: typeof NotificationsRoute
   PosRoute: typeof PosRoute
@@ -291,6 +304,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/chat': {
+      id: '/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof ChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/change-password': {
       id: '/change-password'
       path: '/change-password'
@@ -319,6 +339,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CategoriesRoute: CategoriesRoute,
   ChangePasswordRoute: ChangePasswordRoute,
+  ChatRoute: ChatRoute,
   LoginRoute: LoginRoute,
   NotificationsRoute: NotificationsRoute,
   PosRoute: PosRoute,

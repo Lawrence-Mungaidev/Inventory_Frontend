@@ -20,6 +20,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -36,6 +37,7 @@ const NAV: NavItem[] = [
   { to: "/stocks", label: "Stocks", icon: Boxes, roles: ["ADMIN", "CASHIER"] },
   { to: "/stock-adjustments", label: "Adjustments", icon: Wrench, roles: ["ADMIN", "CASHIER"] },
   { to: "/transactions", label: "Transactions", icon: Receipt, roles: ["ADMIN", "CASHIER"] },
+  { to: "/chat", label: "Assistant", icon: MessageCircle, roles: ["ADMIN", "CASHIER"] },
   { to: "/reports", label: "Reports", icon: BarChart3, roles: ["ADMIN"] },
 ];
 
