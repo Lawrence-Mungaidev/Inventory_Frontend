@@ -15,6 +15,7 @@ export class ApiError extends Error {
   }
 }
 
+
 type Opts = {
   method?: string;
   body?: any;
@@ -47,13 +48,16 @@ export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
   });
 
-  if (res.status === 401) {
-    auth.clear();
-    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-      window.location.href = "/login";
+  if (res.status === 401 && !opts.skipAuth) {
+    if (opts.skipAuth) {
+    } else {
+      auth.clear();
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+        window.location.href = "/login";
+      }
+      throw new ApiError(401, "Session expired");
     }
-    throw new ApiError(401, "Session expired");
-  }
+}
 
   if (res.status === 204) return undefined as T;
 
